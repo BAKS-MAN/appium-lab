@@ -1,0 +1,94 @@
+plugins {
+    id 'java'
+}
+
+defaultTasks 'clean', 'test'
+
+// Project information
+def projectGroup = 'net.testiteasy'
+def projectVersion = '1.0-SNAPSHOT'
+def projectDescription = 'Appium Wikipedia cross-platform simple test example'
+
+// Dependencies versions
+def jetbrainsAnnotationVersion = '24.0.1'
+def aeonbitsVersion = '1.0.12'
+def restAssuredVersion = '5.3.1'
+def selenideAppiumVersion = '6.17.0'
+def appiumJavaVersion = '8.5.1'
+def cucumberVersion = '7.13.0'
+def logbackVersion = '1.4.7'
+def junitJupiterVersion = '5.10.0'
+def junitPlatformVersion = '1.10.0'
+
+group = "$projectGroup"
+version = "$projectVersion"
+description = "$projectDescription"
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+    maven {
+        url = uri('https://repo.maven.apache.org/maven2/')
+        url = uri('https://jitpack.io')
+        mavenContent { snapshotsOnly() }
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains:annotations:$jetbrainsAnnotationVersion"
+
+    implementation "org.aeonbits.owner:owner:$aeonbitsVersion"
+
+    testImplementation ("io.rest-assured:rest-assured:$restAssuredVersion") {
+        exclude group: 'commons-codec', module: 'commons-codec'
+    }
+    testImplementation "io.rest-assured:rest-assured-all:$restAssuredVersion"
+
+    testImplementation "com.codeborne:selenide-appium:$selenideAppiumVersion"
+    testImplementation "io.appium:java-client:$appiumJavaVersion"
+
+    testImplementation "io.cucumber:cucumber-junit:$cucumberVersion"
+    testImplementation "io.cucumber:cucumber-java:$cucumberVersion"
+
+    testImplementation "io.cucumber:cucumber-junit-platform-engine:$cucumberVersion"
+
+    testImplementation "ch.qos.logback:logback-classic:$logbackVersion"
+
+    testImplementation "org.junit.jupiter:junit-jupiter-api:$junitJupiterVersion"
+    testImplementation "org.junit.platform:junit-platform-suite:$junitPlatformVersion"
+
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:$junitJupiterVersion"
+}
+
+tasks.register('libs', Sync) {
+    from configurations.compileClasspath
+    from configurations.testRuntimeClasspath
+    into "$buildDir/lib"
+}
+
+testClasses.dependsOn libs
+
+[compileJava, compileTestJava]*.options.collect {options -> options.encoding = 'UTF-8'}
+[compileJava, compileTestJava]*.options.collect {options -> options.debug = true}
+[compileJava, compileTestJava]*.sourceCompatibility = JavaVersion.VERSION_17
+[compileJava, compileTestJava]*.targetCompatibility = JavaVersion.VERSION_17
+
+tasks.withType(Test).configureEach { testTask ->
+    testTask.useJUnitPlatform()
+    testTask.systemProperties = [
+            'file.encoding': 'UTF-8',
+            'BUILD_URL': System.getenv()['BUILD_URL']
+    ]
+    testTask.testLogging.showStandardStreams = true
+    testTask.outputs.upToDateWhen { false }
+}
+
+tasks.register('mobileCucumberTests', Test) {
+    description = 'Runs all tests depending on the parameters that are passed as system properties'
+
+    systemProperties['running.platform'] = System.getProperty('running.platform', 'local')
+    systemProperties['device.platform'] = System.getProperty('device.platform', 'android')
+    systemProperties['device.name'] = System.getProperty('device.name', 'emulator-5554')
+
+    include '**/*RunCucumberTest*'
+}
